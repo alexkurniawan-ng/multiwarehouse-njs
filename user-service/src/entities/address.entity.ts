@@ -27,6 +27,9 @@ export class Address {
   @Column()
   isDefault: boolean;
 
+  @Column()
+  userId: number;
+
   @ManyToOne(() => User, (user) => user.addresses)
   @JoinColumn({ name: 'userId' })
   user: User;

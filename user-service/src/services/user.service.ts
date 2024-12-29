@@ -14,7 +14,6 @@ import { ResultModelResponseDto } from 'src/dtos/result.response.dto';
 import { CreateAdminBySuperAdminRequestDto } from 'src/dtos/create-admin-by-super-admin.request.dto';
 import { RegisterRequestDto } from 'src/dtos/register.request.dto';
 import { UserProfileResponseDto } from 'src/dtos/user-profile.response.dto';
-import { GetOwnUsersResponseDto } from 'src/dtos/get-own-users.response.dto';
 import { ForgotPasswordRequestDto } from 'src/dtos/forgot-password.request.dto';
 import { ResetPasswordRequestDto } from 'src/dtos/reset-password.request.dto';
 import { ChangePasswordRequestDto } from 'src/dtos/change-pasword.request.dto';
@@ -60,24 +59,15 @@ export class UserService implements OnApplicationBootstrap {
   }
 
   // EVENTS
-  private readonly users: any[] = [
-    {
-      userId: '123',
-      stripeUserId: '43234',
-    },
-    {
-      userId: '345',
-      stripeUserId: '27279',
-    },
-  ];
-
   getHello(): string {
     return 'Hello World!';
   }
 
   // REST
   public getUser(getUserRequest: GetUserRequestDto) {
-    return this.users.find((user) => user.userId === getUserRequest.userId);
+    return this.userRepository.findOne({
+      where: { id: getUserRequest.userId },
+    });
   }
 
   async getUserById(id: number): Promise<User> {
@@ -164,7 +154,6 @@ export class UserService implements OnApplicationBootstrap {
       console.error('Error saving new user:', error);
       throw error;
     }
-    // await this.userRepository.save(newUser);
     return new ResultModelResponseDto(true, 'Email Registered');
   }
 
@@ -181,24 +170,11 @@ export class UserService implements OnApplicationBootstrap {
       fullName: user.fullName,
       email: user.email,
       roles: user.roles.map((role) => role.name),
+      addresses: user.addresses,
+      profilePicture: user.profilePicture,
     };
     return userProfile;
   }
-
-  // async getOwnUsers(): Promise<GetOwnUsersResponseDto[]> {
-  //   const users = await this.userRepository.find({
-  //     relations: { roles: true },
-  //   });
-  //   const usersWithRole = this.mapper.mapArray(
-  //     users,
-  //     User,
-  //     GetOwnUsersResponseDto,
-  //   );
-  //   for (let i = 0; i < usersWithRole.length; i++) {
-  //     usersWithRole[i].roles = users[i].roles.map((role) => role.name);
-  //   }
-  //   return usersWithRole;
-  // }
 
   async forgotPassword(body: ForgotPasswordRequestDto) {
     const { email } = body;
@@ -418,14 +394,5 @@ export class UserService implements OnApplicationBootstrap {
       where: { email: email.toLowerCase() },
     });
     if (existingUser) throw new AppBadRequestException('Email already exist.');
-  }
-
-  private convertToUserProfileResponse(user: User): UserProfileResponseDto {
-    return {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      roles: user.roles.map((role) => role.name),
-    };
   }
 }

@@ -25,11 +25,15 @@ import { UserProfileResponseDto } from 'src/dtos/user-profile.response.dto';
 import { Role } from 'src/enums/role.enum';
 import { AccessTokenGuard } from 'src/guards/access-token.guard';
 import { RolesGuard } from 'src/guards/roles.guard';
+import { AddressService } from 'src/services/address.service';
 import { UserService } from 'src/services/user.service';
 
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly addressService: AddressService,
+  ) {}
 
   @MessagePattern('get_user')
   async getUser(data: GetUserRequestDto) {
@@ -44,6 +48,11 @@ export class UserController {
   @EventPattern('user_forgot_password_request')
   async handleUserChangedPassword(@Payload() data: any) {
     return this.userService.forgotPassword(data.value);
+  }
+
+  @EventPattern('user_address_created_request')
+  async handleAddressCreated(@Payload() data: any) {
+    return this.addressService.createAddress(data.value);
   }
 
   // REST API

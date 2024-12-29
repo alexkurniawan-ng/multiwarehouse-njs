@@ -33,8 +33,7 @@ export class User {
   @JoinTable({ name: 'user_role' })
   roles: Role[];
 
-  @OneToMany(() => Address, (address: Address) => address.user)
-  @JoinTable({ name: 'user_address' })
+  @OneToMany(() => Address, (address) => address.user)
   addresses: Address[];
 
   @CreateDateColumn()

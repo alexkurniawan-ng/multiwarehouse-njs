@@ -13,11 +13,13 @@ import EmailService from './services/email.service';
 import { DatabaseType } from 'typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { AccessTokenStrategy } from './jwt-strategies/access-token.strategy';
+import { Address } from './entities/address.entity';
+import { AddressService } from './services/address.service';
 
 @Module({
   imports: [
     PassportModule,
-    TypeOrmModule.forFeature([User, Role]),
+    TypeOrmModule.forFeature([User, Role, Address]),
     ConfigModule.forRoot({
       envFilePath: ['.env'],
       isGlobal: true,
@@ -58,6 +60,12 @@ import { AccessTokenStrategy } from './jwt-strategies/access-token.strategy';
     ]),
   ],
   controllers: [UserController, AuthController],
-  providers: [UserService, AuthService, EmailService, AccessTokenStrategy],
+  providers: [
+    UserService,
+    AuthService,
+    EmailService,
+    AddressService,
+    AccessTokenStrategy,
+  ],
 })
 export class UserModule {}
