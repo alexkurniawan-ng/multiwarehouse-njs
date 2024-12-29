@@ -39,5 +39,7 @@ api-gateway/dist
 api-gateway/node_modules
 user-service/dist
 user-service/node_modules
+user-service/.env*
 warehouse-service/dist
 warehouse-service/node_modules
+warehouse-service/.env*
