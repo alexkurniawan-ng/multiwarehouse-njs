@@ -367,7 +367,7 @@ export class UserService implements OnApplicationBootstrap {
     });
   }
 
-  private async decodeJWTForgotPasswordToken(token: string) {
+  public async decodeJWTForgotPasswordToken(token: string) {
     try {
       const payload = await this.jwtService.verify(token, {
         secret: this.forgotPasswordSecret,

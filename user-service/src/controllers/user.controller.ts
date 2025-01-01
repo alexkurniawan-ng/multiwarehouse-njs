@@ -50,9 +50,29 @@ export class UserController {
     return this.userService.forgotPassword(data.value);
   }
 
+  @EventPattern('get_user_address_request')
+  async handleGetAddress(@Payload() data: any) {
+    return this.addressService.getAddress(data.value.userId);
+  }
+
   @EventPattern('user_address_created_request')
   async handleAddressCreated(@Payload() data: any) {
     return this.addressService.createAddress(data.value);
+  }
+
+  @EventPattern('user_address_changed_request')
+  async handleAddressChanged(@Payload() data: any) {
+    return this.addressService.changeAddress(data.value);
+  }
+
+  @EventPattern('user_address_deleted_request')
+  async handleAddressDeleted(@Payload() data: any) {
+    return this.addressService.deleteAddress(data.value);
+  }
+
+  @EventPattern('user_address_primary_request')
+  async handleSetPrimaryAddress(@Payload() data: any) {
+    return this.addressService.setPrimaryAddress(data.value);
   }
 
   // REST API
