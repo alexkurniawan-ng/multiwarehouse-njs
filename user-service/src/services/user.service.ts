@@ -1,4 +1,9 @@
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { GetUserRequestDto } from 'src/dtos/get-user.request.dto';
@@ -19,6 +24,8 @@ import { ResetPasswordRequestDto } from 'src/dtos/reset-password.request.dto';
 import { ChangePasswordRequestDto } from 'src/dtos/change-pasword.request.dto';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
+import { ClientKafka } from '@nestjs/microservices';
+import { UserCreatedEvent } from 'src/events/user-created-event';
 
 @Injectable()
 export class UserService implements OnApplicationBootstrap {
@@ -32,7 +39,7 @@ export class UserService implements OnApplicationBootstrap {
     private readonly emailService: EmailService,
     private configService: ConfigService,
     private jwtService: JwtService,
-    // @InjectMapper() private mapper: Mapper,
+    @Inject('USER_SERVICE') private readonly userClient: ClientKafka,
     @InjectRepository(User) private userRepository: Repository<User>,
     @InjectRepository(RoleEntity)
     private roleRepository: Repository<RoleEntity>,
@@ -133,6 +140,24 @@ export class UserService implements OnApplicationBootstrap {
     return new ResultModelResponseDto(true, 'Admin Created');
   }
 
+  async getAllUsers(): Promise<UserProfileResponseDto[]> {
+    const users = await this.userRepository.find({
+      relations: {
+        roles: true,
+      },
+    });
+    return users.map((user) => {
+      return {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        roles: user.roles.map((role) => role.name),
+        profilePicture: user.profilePicture,
+        addresses: user.addresses,
+      };
+    });
+  }
+
   async register(
     registerDto: RegisterRequestDto,
   ): Promise<ResultModelResponseDto> {
@@ -144,17 +169,31 @@ export class UserService implements OnApplicationBootstrap {
       newUser.email = email.toLowerCase();
       newUser.fullName = fullName;
       newUser.roles = new Array(await this.getRoleByName(RoleEnum.User));
-      await this.sendVerifyEmail(fullName, email.toLowerCase());
-
+      // await this.sendVerifyEmail(fullName, email.toLowerCase());
       await this.userRepository.save(newUser);
+      this.userClient.emit('user_created_event', new UserCreatedEvent(newUser));
       console.log(
         `User created with email: ${email} and Full Name: ${fullName}`,
       );
     } catch (error) {
       console.error('Error saving new user:', error);
-      throw error;
+      throw new InternalServerErrorException('Error saving new user');
     }
     return new ResultModelResponseDto(true, 'Email Registered');
+  }
+
+  async reSendEmail(
+    registerDto: RegisterRequestDto,
+  ): Promise<ResultModelResponseDto> {
+    const { email, fullName } = registerDto;
+    this.userClient.emit(
+      'user_created_event',
+      new UserCreatedEvent(registerDto),
+    );
+    console.log(
+      `Resend Email for User with email: ${email} and Full Name: ${fullName}`,
+    );
+    return new ResultModelResponseDto(true, 'Re-send email success');
   }
 
   async getUserProfile(userId: number): Promise<UserProfileResponseDto> {
@@ -318,15 +357,16 @@ export class UserService implements OnApplicationBootstrap {
     return;
   }
 
-  private sendVerifyEmail(name: string, email: string) {
-    const payload = { name, email };
+  public async sendVerifyEmail(data: any) {
+    const { fullName, email } = data;
+    const payload = { fullName, email };
     const token = this.jwtService.sign(payload, {
       expiresIn: this.verifyEmailExpiry,
     });
     const baseUrl = this.configService.get<string>('BASE_URL');
     const url = `${baseUrl}/${this.verifyEmailUrl}/${token}`;
     const text = `
-    Dear ${name},
+    Dear ${fullName},
     
     To verify your email and set your password, please click on the following link:
     ${url}

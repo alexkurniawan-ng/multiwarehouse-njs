@@ -1,7 +1,7 @@
-import { ChangeAddressRequestDto } from 'src/dtos/change-address.request.dto';
+import { UpdateAddressRequestDto } from 'src/dtos/update-address.request.dto';
 
-export class UserAddressChangedEvent {
-  constructor(public readonly data: ChangeAddressRequestDto) {}
+export class UserAddressUpdatedEvent {
+  constructor(public readonly data: UpdateAddressRequestDto) {}
 
   toString(): string {
     return JSON.stringify({

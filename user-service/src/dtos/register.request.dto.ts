@@ -5,14 +5,6 @@ export class RegisterRequestDto {
   @IsEmail()
   email: string;
 
-  // @IsNotEmpty()
-  // @IsStrongPassword()
-  // password: string;
-
-  // @IsNotEmpty()
-  // @IsStrongPassword()
-  // confirmPassword: string;
-
   @IsNotEmpty()
   fullName: string;
 }

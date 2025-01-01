@@ -1,6 +1,6 @@
 import { IsNotEmpty } from 'class-validator';
 
-export class ChangeAddressRequestDto {
+export class UpdateAddressRequestDto {
   @IsNotEmpty()
   id: number;
 

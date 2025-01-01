@@ -1,6 +1,6 @@
 import { IsNotEmpty } from 'class-validator';
 
-export class DeleteAddressRequestDto {
+export class GetAddressRequestDto {
   @IsNotEmpty()
-  id: number;
+  userId: number;
 }
