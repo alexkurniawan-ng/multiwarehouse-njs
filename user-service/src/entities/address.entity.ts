@@ -27,6 +27,12 @@ export class Address {
   @Column()
   isDefault: boolean;
 
+  @Column({ type: 'double precision', default: 0 })
+  lat: number;
+
+  @Column({ type: 'double precision', default: 0 })
+  lng: number;
+
   @Column()
   userId: number;
 

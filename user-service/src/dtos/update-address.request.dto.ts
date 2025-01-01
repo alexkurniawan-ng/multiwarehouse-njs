@@ -15,4 +15,8 @@ export class UpdateAddressRequestDto {
 
   @IsNotEmpty()
   postalCode: string;
+
+  lat: number;
+
+  lng: number;
 }

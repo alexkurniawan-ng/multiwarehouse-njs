@@ -5,6 +5,6 @@ export class UserProfileResponseDto {
   fullName: string;
   email: string;
   roles: string[];
-  addresses: Address[];
+  addresses?: Address[];
   profilePicture: string;
 }

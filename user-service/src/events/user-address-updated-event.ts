@@ -10,6 +10,8 @@ export class UserAddressUpdatedEvent {
       city: this.data.city,
       province: this.data.province,
       postalCode: this.data.postalCode,
+      lat: this.data.lat,
+      lng: this.data.lng,
     });
   }
 }

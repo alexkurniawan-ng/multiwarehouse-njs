@@ -23,13 +23,16 @@ export class AddressService {
   public async createAddress(
     createAddressDto: CreateAddressRequestDto,
   ): Promise<ResultModelResponseDto> {
-    const { street, city, province, postalCode, userId } = createAddressDto;
+    const { street, city, province, postalCode, userId, lat, lng } =
+      createAddressDto;
     const newAddress = new Address();
     newAddress.street = street;
     newAddress.city = city;
     newAddress.province = province;
     newAddress.postalCode = postalCode;
     newAddress.userId = userId;
+    newAddress.lat = lat;
+    newAddress.lng = lng;
     const address = await this.getAddressByUserId(userId);
     if (address.length === 0) {
       newAddress.isDefault = true;
@@ -57,12 +60,15 @@ export class AddressService {
   public async updateAddress(
     updateAddressDto: UpdateAddressRequestDto,
   ): Promise<ResultModelResponseDto> {
-    const { id, street, city, province, postalCode } = updateAddressDto;
+    const { id, street, city, province, postalCode, lat, lng } =
+      updateAddressDto;
     const address = await this.getAddressById(id);
     address.street = street;
     address.city = city;
     address.province = province;
     address.postalCode = postalCode;
+    address.lat = lat;
+    address.lng = lng;
     await this.addressRepository.save(address);
     this.userClient.emit(
       'user_address_updated_event',
