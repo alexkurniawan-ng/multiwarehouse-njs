@@ -1,5 +1,5 @@
 export class GetOwnUsersResponseDto {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   roles: string[];

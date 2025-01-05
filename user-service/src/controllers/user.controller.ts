@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -172,21 +173,21 @@ export class UserController {
     return await this.addressService.createAddress(body);
   }
 
-  @Post('update-address')
+  @Put('update-address')
   async changeAddress(
     @Body() body: UpdateAddressRequestDto,
   ): Promise<ResultModelResponseDto> {
     return await this.addressService.updateAddress(body);
   }
 
-  @Post('delete-address')
+  @Delete('address')
   async deleteAddress(
     @Body() body: DeleteAddressRequestDto,
   ): Promise<ResultModelResponseDto> {
     return await this.addressService.deleteAddress(body);
   }
 
-  @Post('set-primary-address')
+  @Put('set-primary-address')
   async setPrimaryAddress(
     @Body() body: SetPrimaryAddressRequestDto,
   ): Promise<ResultModelResponseDto> {

@@ -2,7 +2,7 @@ import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateAddressRequestDto {
   @IsNotEmpty()
-  userId: number;
+  userId: string;
 
   @IsNotEmpty()
   street: string;

@@ -1,6 +1,6 @@
 export class TokenResponseDto {
   accessToken: string;
   refreshToken: string;
-  userId: number;
+  userId: string;
   roles: string[];
 }

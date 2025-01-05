@@ -2,10 +2,10 @@ import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class SetPrimaryAddressRequestDto {
   @IsNotEmpty()
-  userId: number;
+  userId: string;
 
   @IsNotEmpty()
-  addressId: number;
+  addressId: string;
 
   @IsOptional()
   isDefault: boolean;

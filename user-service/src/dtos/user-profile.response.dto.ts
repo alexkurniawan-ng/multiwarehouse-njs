@@ -1,7 +1,7 @@
 import { Address } from 'src/entities/address.entity';
 
 export class UserProfileResponseDto {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   roles: string[];

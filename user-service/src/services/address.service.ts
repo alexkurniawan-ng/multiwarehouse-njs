@@ -48,7 +48,7 @@ export class AddressService {
     return new ResultModelResponseDto(true, 'Address Created');
   }
 
-  public async getAddress(userId: number): Promise<Address[]> {
+  public async getAddress(userId: string): Promise<Address[]> {
     const address = await this.getAddressByUserId(userId);
     console.log(`Address found with user ID: ${userId} with address: `);
     address.forEach((address) => {
@@ -120,11 +120,11 @@ export class AddressService {
     return new ResultModelResponseDto(true, 'Address Deleted');
   }
 
-  private async getAddressByUserId(userId: number): Promise<Address[]> {
+  private async getAddressByUserId(userId: string): Promise<Address[]> {
     return await this.addressRepository.find({ where: { userId } });
   }
 
-  private async getAddressById(id: number): Promise<Address> {
+  private async getAddressById(id: string): Promise<Address> {
     return await this.addressRepository.findOne({ where: { id } });
   }
 }

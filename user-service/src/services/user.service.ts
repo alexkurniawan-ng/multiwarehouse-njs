@@ -77,7 +77,7 @@ export class UserService implements OnApplicationBootstrap {
     });
   }
 
-  async getUserById(id: number): Promise<User> {
+  async getUserById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
     });
@@ -196,7 +196,7 @@ export class UserService implements OnApplicationBootstrap {
     return new ResultModelResponseDto(true, 'Re-send email success');
   }
 
-  async getUserProfile(userId: number): Promise<UserProfileResponseDto> {
+  async getUserProfile(userId: string): Promise<UserProfileResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: {
@@ -245,7 +245,7 @@ export class UserService implements OnApplicationBootstrap {
   }
 
   async changePassword(
-    userId: number,
+    userId: string,
     passwordDto: ChangePasswordRequestDto,
   ): Promise<ResultModelResponseDto> {
     const user = await this.getUserById(userId);
