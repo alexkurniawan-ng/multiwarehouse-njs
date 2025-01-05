@@ -43,3 +43,6 @@ user-service/.env*
 warehouse-service/dist
 warehouse-service/node_modules
 warehouse-service/.env*
+product-service/dist
+product-service/node_modules
+product-service/.env*
