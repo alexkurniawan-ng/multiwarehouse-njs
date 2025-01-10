@@ -1,10 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import { UserModule } from './user.module';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { ProductModule } from './product.module';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
-    UserModule,
+    ProductModule,
     {
       transport: Transport.KAFKA,
       options: {
@@ -12,16 +12,16 @@ async function bootstrap() {
           brokers: ['localhost:29092'],
         },
         consumer: {
-          groupId: 'user-consumer',
+          groupId: 'product-consumer',
         },
       },
     },
   );
   await app.listen();
 
-  const httpApp = await NestFactory.create(UserModule, { cors: true });
-  await httpApp.listen(3001, () => {
-    console.log('User service is listening on port 3001');
+  const httpApp = await NestFactory.create(ProductModule, { cors: true });
+  await httpApp.listen(3003, () => {
+    console.log('User service is listening on port 3003');
   });
 }
 bootstrap();

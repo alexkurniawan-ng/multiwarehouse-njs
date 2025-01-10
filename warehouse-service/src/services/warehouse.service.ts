@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ClientKafka } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,37 +16,30 @@ import { Warehouse } from 'src/entities/warehouse.entity';
 import { WarehouseCreatedEvent } from 'src/events/warehouse-created-event';
 import { WarehouseDeletedEvent } from 'src/events/warehouse-deleted-event';
 import { WarehouseUpdatedEvent } from 'src/events/warehouse-updated-event';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ResultModelResponseDto } from 'src/dtos/result.response.dto';
 import { AdminWarehouse } from 'src/entities/admin-warehouse.entity';
+import { GetWarehouseByTokenDto } from 'src/dtos/warehouse/get-warehouse.request.dto';
 
 @Injectable()
-export class WarehouseService {
+export class WarehouseService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(Warehouse)
     private warehouseRepository: Repository<Warehouse>,
     @InjectRepository(AdminWarehouse)
     private adminWarehouseRepository: Repository<AdminWarehouse>,
     @Inject('USER_SERVICE') private readonly userClient: ClientKafka,
+    @Inject('WAREHOUSE_SERVICE') private readonly warehouseClient: ClientKafka,
   ) {}
 
-  // getHello(): string {
-  //   return 'Hello World!';
-  // }
-
-  // handleWarehouseCreated(warehouseCreatedEvent: WarehouseCreatedEvent) {
-  //   console.log(warehouseCreatedEvent);
-  //   this.userClient
-  //     .send('get_user', new GetUserRequestDto(warehouseCreatedEvent.userId))
-  //     .subscribe((data) => {
-  //       console.log(
-  //         `Warehouse ${data} with id ${data} created by user with id ${data}`,
-  //       );
-  //     });
-  // }
+  async onApplicationBootstrap() {
+    await this.createWarehouseIfNotExist();
+  }
 
   public async getWarehouseList(): Promise<WarehouseListResponseDto[]> {
-    const warehouses = await this.warehouseRepository.find();
+    const warehouses = await this.warehouseRepository.find({
+      relations: ['adminWarehouses'],
+    });
     return warehouses.map((warehouse) => {
       return {
         warehouseId: warehouse.id,
@@ -76,6 +70,83 @@ export class WarehouseService {
       lat: warehouse.lat,
       lng: warehouse.lng,
     };
+  }
+
+  public async getWarehouseByToken(
+    token: string,
+  ): Promise<WarehouseListResponseDto[]> {
+    return new Promise((resolve, reject) => {
+      this.userClient
+        .send('get-user-token', new GetWarehouseByTokenDto(token))
+        .subscribe(async (data) => {
+          console.log({ data });
+          // console.log(data.roles);
+
+          if (
+            data.roles.filter((role) => role.name === 'super_admin').length > 0
+          ) {
+            console.log('super admin');
+            const warehouses = await this.warehouseRepository.find();
+            const result = [];
+            for (const warehouse of warehouses) {
+              const adminWarehouses = await this.adminWarehouseRepository.find({
+                where: { warehouseId: warehouse.id },
+              });
+              result.push({
+                warehouseId: warehouse.id,
+                adminWarehouse: adminWarehouses.map((admin) => admin.fullName),
+                name: warehouse.name,
+                description: warehouse.description,
+                street: warehouse.street,
+                city: warehouse.city,
+                province: warehouse.province,
+                postalCode: warehouse.postalCode,
+                lat: warehouse.lat,
+                lng: warehouse.lng,
+              });
+            }
+            resolve(result);
+          } else if (
+            data.roles.filter((role) => role.name === 'admin').length > 0
+          ) {
+            console.log('admin');
+            const adminWarehouses = await this.adminWarehouseRepository.find({
+              where: {
+                userId: data.userId,
+              },
+            });
+            const warehouseIds = adminWarehouses.map(
+              (admin) => admin.warehouseId,
+            );
+            const warehouses = await this.warehouseRepository.find({
+              where: {
+                id: In(warehouseIds),
+              },
+            });
+            const result = [];
+            for (const warehouse of warehouses) {
+              const adminWarehouses = await this.adminWarehouseRepository.find({
+                where: { warehouseId: warehouse.id },
+              });
+              result.push({
+                warehouseId: warehouse.id,
+                adminWarehouse: adminWarehouses.map((admin) => admin.fullName),
+                name: warehouse.name,
+                description: warehouse.description,
+                street: warehouse.street,
+                city: warehouse.city,
+                province: warehouse.province,
+                postalCode: warehouse.postalCode,
+                lat: warehouse.lat,
+                lng: warehouse.lng,
+              });
+            }
+            resolve(result);
+          } else {
+            resolve([]);
+          }
+        }, reject);
+    });
   }
 
   public async createWarehouse(
@@ -112,11 +183,15 @@ export class WarehouseService {
     warehouse.lat = updateWarehouseRequestDto.lat;
     warehouse.lng = updateWarehouseRequestDto.lng;
     await this.warehouseRepository.save(warehouse);
-    this.userClient.emit(
+
+    const adminWarehouses = await this.adminWarehouseRepository.find({
+      where: { warehouseId: warehouse.id },
+    });
+    this.warehouseClient.emit(
       'warehouse-updated-event',
       new WarehouseUpdatedEvent(
         warehouse.id,
-        warehouse.adminWarehouses.map((admin) => admin.userId),
+        adminWarehouses.map((admin) => admin.userId),
         warehouse.name,
         warehouse.description,
         warehouse.street,
@@ -144,41 +219,58 @@ export class WarehouseService {
   public async assignAdminToWarehouse(
     request: AssignAdminWarehouseRequestDto,
   ): Promise<ResultModelResponseDto> {
+    console.log({ request });
     const warehouse = await this.warehouseRepository.findOneBy({
       id: request.warehouseId,
     });
     if (!warehouse) {
       return new ResultModelResponseDto(false, 'Warehouse not found');
     }
+    const adminWarehouses = await this.adminWarehouseRepository.find({
+      where: { warehouseId: request.warehouseId },
+    });
+    if (adminWarehouses.length > 0) {
+      adminWarehouses.forEach(async (admin) => {
+        if (admin.userId === request.userId) {
+          return new ResultModelResponseDto(
+            false,
+            'Admin already assigned to warehouse',
+          );
+        }
+      });
+    }
+
     try {
-      const adminWarehouse = new AdminWarehouse();
-      adminWarehouse.userId = request.userId;
-      adminWarehouse.warehouse = warehouse;
-      adminWarehouse.warehouseId = warehouse.id;
-      const isExist = warehouse.adminWarehouses.find(
-        (item) => item.userId === request.userId,
-      );
-      if (!isExist) {
-        warehouse.adminWarehouses.push(adminWarehouse);
-        await this.adminWarehouseRepository.save(adminWarehouse);
-        await this.warehouseRepository.save(warehouse);
-      } else {
-        return new ResultModelResponseDto(
-          false,
-          'Admin already assigned to warehouse',
-        );
-      }
+      this.userClient
+        .send('get-user-data', new GetUserRequestDto(request.userId))
+        .subscribe(async (data) => {
+          console.log({ data });
+
+          const { fullName, email } = data;
+          const adminWarehouse = new AdminWarehouse();
+          adminWarehouse.userId = request.userId;
+          adminWarehouse.warehouseId = warehouse.id;
+          adminWarehouse.fullName = fullName;
+          adminWarehouse.email = email;
+          await this.adminWarehouseRepository.save(adminWarehouse);
+          console.log(
+            `Warehouse ${warehouse.name} with id ${warehouse.id} assigned admin ${fullName} with id ${data.id}`,
+          );
+        });
     } catch (error) {
       console.log(error);
       throw new InternalServerErrorException(
         'There is error when assigned admin to warehouse',
       );
     }
-    this.userClient.emit(
+    const listAdmin = adminWarehouses.map((admin) => admin.userId);
+    listAdmin.push(request.userId);
+
+    this.warehouseClient.emit(
       'warehouse-updated-event',
       new WarehouseUpdatedEvent(
         warehouse.id,
-        warehouse.adminWarehouses.map((admin) => admin.userId),
+        listAdmin,
         warehouse.name,
         warehouse.description,
         warehouse.street,
@@ -189,7 +281,7 @@ export class WarehouseService {
         warehouse.lng,
       ),
     );
-    console.log(`Admin assigned to warehouse with id: ${warehouse.id}`);
+    // console.log(`Admin assigned to warehouse with id: ${warehouse.id}`);
     return new ResultModelResponseDto(
       true,
       'Admin assigned to warehouse successfully',
@@ -209,11 +301,15 @@ export class WarehouseService {
     warehouse.lat = request.lat;
     warehouse.lng = request.lng;
     await this.warehouseRepository.save(warehouse);
+
+    const adminWarehouses = await this.adminWarehouseRepository.find({
+      where: { warehouseId: warehouse.id },
+    });
     this.userClient.emit(
       'warehouse-updated-event',
       new WarehouseUpdatedEvent(
         warehouse.id,
-        warehouse.adminWarehouses.map((admin) => admin.userId),
+        adminWarehouses.map((admin) => admin.userId),
         warehouse.name,
         warehouse.description,
         warehouse.street,
@@ -226,5 +322,45 @@ export class WarehouseService {
     );
     console.log(`Warehouse updated with id: ${warehouse.id}`);
     return new ResultModelResponseDto(true, 'Warehouse Updated');
+  }
+
+  async createWarehouseIfNotExist() {
+    const count = await this.warehouseRepository.count();
+    if (count === 0) {
+      const warehouses = [
+        {
+          name: 'Warehouse Jakarta',
+          description: 'Biggest warehouse',
+          street: 'Jl. Raya Jakarta',
+          city: 'Jakarta',
+          province: 'DKI Jakarta',
+          postalCode: '10110',
+          lat: -6.215957,
+          lng: 106.812642,
+        },
+        {
+          name: 'Warehouse Bandung',
+          description: 'Biggest warehouse',
+          street: 'Jl. Raya Bandung',
+          city: 'Bandung',
+          province: 'Jawa Barat',
+          postalCode: '40123',
+          lat: -6.875467,
+          lng: 107.614771,
+        },
+      ];
+      for (const warehouse of warehouses) {
+        const newWarehouse = new Warehouse();
+        newWarehouse.name = warehouse.name;
+        newWarehouse.description = warehouse.description;
+        newWarehouse.street = warehouse.street;
+        newWarehouse.city = warehouse.city;
+        newWarehouse.province = warehouse.province;
+        newWarehouse.postalCode = warehouse.postalCode;
+        newWarehouse.lat = warehouse.lat;
+        newWarehouse.lng = warehouse.lng;
+        await this.warehouseRepository.save(newWarehouse);
+      }
+    }
   }
 }

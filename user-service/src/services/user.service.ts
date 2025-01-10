@@ -26,6 +26,7 @@ import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { ClientKafka } from '@nestjs/microservices';
 import { UserCreatedEvent } from 'src/events/user-created-event';
+import { GetUserTokenRequestDto } from 'src/dtos/get-user-token.request.dto';
 
 @Injectable()
 export class UserService implements OnApplicationBootstrap {
@@ -66,13 +67,33 @@ export class UserService implements OnApplicationBootstrap {
   }
 
   // EVENTS
-  getHello(): string {
-    return 'Hello World!';
+  public async getUserEvent(getUserRequest: GetUserRequestDto) {
+    const user = await this.userRepository.findOne({
+      where: { id: getUserRequest.userId },
+    });
+    return JSON.stringify(user);
+  }
+
+  public async getUserTokenEvent(getUserRequest: GetUserTokenRequestDto) {
+    try {
+      const email = await this.decodeJWTForgotPasswordToken(
+        getUserRequest.token,
+      );
+      console.log(`Email is: ${email}`);
+      const user = await this.userRepository.findOne({
+        where: { email },
+        relations: ['roles'],
+      });
+      console.log({ user });
+      return JSON.stringify(user);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   // REST
-  public getUser(getUserRequest: GetUserRequestDto) {
-    return this.userRepository.findOne({
+  public async getUser(getUserRequest: GetUserRequestDto) {
+    return await this.userRepository.findOne({
       where: { id: getUserRequest.userId },
     });
   }
@@ -140,6 +161,18 @@ export class UserService implements OnApplicationBootstrap {
     return new ResultModelResponseDto(true, 'Admin Created');
   }
 
+  async updateAdminBySuperAdmin(
+    adminDto: CreateAdminBySuperAdminRequestDto,
+  ): Promise<ResultModelResponseDto> {
+    const admin = await this.getUserByEmail(adminDto.email);
+
+    admin.fullName = adminDto.fullName;
+    admin.passwordHash = await this.generatePasswordHash(adminDto.password);
+    await this.userRepository.save(admin);
+
+    return new ResultModelResponseDto(true, 'Admin Update');
+  }
+
   async getAllUsers(): Promise<UserProfileResponseDto[]> {
     const users = await this.userRepository.find({
       relations: {
@@ -171,7 +204,7 @@ export class UserService implements OnApplicationBootstrap {
       newUser.roles = new Array(await this.getRoleByName(RoleEnum.User));
       // await this.sendVerifyEmail(fullName, email.toLowerCase());
       await this.userRepository.save(newUser);
-      this.userClient.emit('user_created_event', new UserCreatedEvent(newUser));
+      this.userClient.emit('user-created-event', new UserCreatedEvent(newUser));
       console.log(
         `User created with email: ${email} and Full Name: ${fullName}`,
       );
@@ -187,7 +220,7 @@ export class UserService implements OnApplicationBootstrap {
   ): Promise<ResultModelResponseDto> {
     const { email, fullName } = registerDto;
     this.userClient.emit(
-      'user_created_event',
+      'user-created-event',
       new UserCreatedEvent(registerDto),
     );
     console.log(
@@ -404,6 +437,34 @@ export class UserService implements OnApplicationBootstrap {
       to: email,
       subject: 'Forgot Password',
       text,
+    });
+  }
+
+  public sendStockAlert(data: any) {
+    const { warehouseId, warehouseName, adminIds, inventoryId, productId } =
+      data;
+
+    adminIds.forEach(async (adminId) => {
+      const admin = await this.userRepository.findOne({
+        where: { id: adminId },
+      });
+      const text = `
+      Dear ${admin.fullName},
+      
+      A stock alert has been triggered for the product with ID ${productId} in the inventory with ID ${inventoryId} in the warehouse with ID ${warehouseId} (${warehouseName}).
+      
+      Thank you.
+      Multiwarehouse App
+      `;
+
+      if (admin) {
+        return this.emailService.sendMail({
+          from: this.configService.get<string>('EMAIL_USER'),
+          to: admin.email,
+          subject: 'Forgot Password',
+          text,
+        });
+      }
     });
   }
 

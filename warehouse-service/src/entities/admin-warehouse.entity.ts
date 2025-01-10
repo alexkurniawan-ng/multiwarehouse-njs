@@ -17,7 +17,7 @@ export class AdminWarehouse {
   @Column()
   userId: string;
 
-  @Column({ name: 'warehouseId' })
+  @Column({ name: 'warehouseId', nullable: true })
   warehouseId: string;
 
   @ManyToOne(() => Warehouse, (warehouse) => warehouse.adminWarehouses, {
@@ -25,6 +25,12 @@ export class AdminWarehouse {
   })
   @JoinColumn({ name: 'warehouseId' })
   warehouse: Warehouse;
+
+  @Column({ nullable: true })
+  fullName: string;
+
+  @Column({ nullable: true })
+  email: string;
 
   @CreateDateColumn()
   createdDate: Date;

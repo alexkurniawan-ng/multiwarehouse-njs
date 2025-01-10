@@ -17,6 +17,11 @@ async function bootstrap() {
       },
     },
   );
-  app.listen();
+  await app.listen();
+
+  const httpApp = await NestFactory.create(WarehouseModule, { cors: true });
+  await httpApp.listen(3002, () => {
+    console.log('Warehouse service is listening on port 3002');
+  });
 }
 bootstrap();

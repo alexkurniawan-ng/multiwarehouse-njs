@@ -15,8 +15,10 @@ import { StockJournal } from 'src/entities/stock-journal.entity';
 import { Warehouse } from 'src/entities/warehouse.entity';
 import { MutationStatus } from 'src/enums/mutation-status.enum';
 import { MutationType } from 'src/enums/mutation-type.enum';
+import { InventoryStockUpdateEvent } from 'src/events/inventory-stock-update-event';
+import { ProductInventoryCreatedEvent } from 'src/events/product-inventory-created.event';
 import { WarehouseStockAlertEvent } from 'src/events/warehouse-stock-alert-event';
-import { MoreThan, Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class InventoryService {
@@ -29,6 +31,23 @@ export class InventoryService {
     private warehouseRepository: Repository<Warehouse>,
     @Inject('WAREHOUSE_SERVICE') private readonly warehouseClient: ClientKafka,
   ) {}
+
+  public async createNewInventory(data: ProductInventoryCreatedEvent[]) {
+    console.log('Creating new inventory...');
+    data.forEach(async (request) => {
+      const { productId, quantity } = request;
+      const warehouses = await this.warehouseRepository.find();
+      const randomWarehouse =
+        warehouses[Math.floor(Math.random() * warehouses.length)];
+      const inventory = this.inventoryRepository.create({
+        productId,
+        quantity,
+        warehouseId: randomWarehouse.id,
+      });
+      console.log({ inventory });
+      await this.inventoryRepository.save(inventory);
+    });
+  }
 
   public async getTotalInventoryByProductId(
     productId: string,
@@ -156,6 +175,7 @@ export class InventoryService {
                   ),
                 );
               }
+              // Move Stock to nearest warehouse
               await this.stockMutation({
                 orderId,
                 sourceInventoryId: inventorySource.id,
@@ -167,7 +187,7 @@ export class InventoryService {
               break;
             }
           }
-          // SEND EMAIL TO WAREHOUSE ADMIN ABOUT INSUFFICIENT STOCK
+          // Send email to nearest warehouse about insufficient stock
           this.warehouseClient.emit(
             'warehouse-stock-alert-event',
             new WarehouseStockAlertEvent(
@@ -179,15 +199,24 @@ export class InventoryService {
             ),
           );
         }
-
-        await this.createJournal(
-          MutationType.OUT,
-          orderItem.quantity,
-          inventory.id,
+        // Update Stock on Nearest Warehouse
+        await this.stockMutation({
           orderId,
-          null,
-          MutationStatus.APPROVED,
-          null,
+          sourceInventoryId: inventory.id,
+          destinationInventoryId: null,
+          productId: orderItem.productId,
+          quantity: orderItem.quantity,
+          remarks: `Stock Take for order ${orderId} to warehouse ${warehouse.name}`,
+        });
+
+        // Send event to product service
+        this.warehouseClient.emit(
+          'inventory-stock-update-event',
+          new InventoryStockUpdateEvent(
+            inventory.id,
+            inventory.productId,
+            inventory.quantity,
+          ),
         );
       });
     } catch (error) {

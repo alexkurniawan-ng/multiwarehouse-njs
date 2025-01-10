@@ -16,7 +16,8 @@ export class InventoryController {
     @Inject('WAREHOUSE_SERVICE') private readonly warehouseClient: ClientKafka,
     @Inject('USER_SERVICE') private readonly userClient: ClientKafka,
   ) {}
-  // LISTENER
+
+  // CONSUMER
   @MessagePattern('inventory-stock-take-request')
   async handleInventoryStockRequest(
     @Body() body: InventoryStockTakeRequestDto,
@@ -30,6 +31,12 @@ export class InventoryController {
   ): Promise<InventoryTotalProductResponseDto> {
     return this.inventoryService.getTotalInventoryByProductId(body.productId);
   }
+
+  @MessagePattern('product-inventory-created-event')
+  async handleProductInventoryCreatedEvent(@Body() data: any): Promise<void> {
+    return this.inventoryService.createNewInventory(data.value);
+  }
+
   // @Get('product/:productId')
   // @ApiBearerAuth()
   // public async getInventory(
@@ -47,7 +54,7 @@ export class InventoryController {
 
   @Post('stock/status')
   @ApiBearerAuth()
-  public async rejectStockRequest(
+  public async changeStockRequest(
     @Body() body: InventoryStockRequestStatusRequestDto,
   ): Promise<ResultModelResponseDto> {
     return this.inventoryService.changeStockRequestStatus(body);

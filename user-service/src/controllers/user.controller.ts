@@ -42,20 +42,31 @@ export class UserController {
   ) {}
 
   // LISTENER
-  @MessagePattern('get_user_data')
-  async getUser(data: GetUserRequestDto) {
-    return this.userService.getUser(data);
+  @MessagePattern('get-user-data')
+  async getUser(data: any) {
+    return this.userService.getUserEvent(data.value);
   }
 
-  @MessagePattern('get_user_address')
-  async getUserAddress(data: GetUserRequestDto) {
-    return this.userService.getUser(data);
+  @MessagePattern('get-user-token')
+  async getUserByToken(data: any) {
+    return this.userService.getUserTokenEvent(data.value);
   }
 
-  @EventPattern('user_created_event')
+  // @MessagePattern('get-user-address')
+  // async getUserAddress(data: any) {
+  //   return this.userService.getUser(data);
+  // }
+
+  @EventPattern('user-created-event')
   async handleUserCreated(@Payload() data: any) {
     return this.userService.sendVerifyEmail(data.value);
   }
+
+  @EventPattern('warehouse-stock-alert-event')
+  async handleWarehouseStockAlert(@Payload() data: any) {
+    return this.userService.sendStockAlert(data.value);
+  }
+
   // @EventPattern('user_created_request')
   // async handleUserCreated(@Payload() data: any) {
   //   return this.userService.register(data.value);
@@ -103,6 +114,16 @@ export class UserController {
     return await this.userService.createAdminBySuperAdmin(body);
   }
 
+  @Put('update-admin')
+  @Roles(Role.SuperAdmin)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @ApiBearerAuth()
+  async updateAdminBySuperAdmin(
+    @Body() body: CreateAdminBySuperAdminRequestDto,
+  ): Promise<ResultModelResponseDto> {
+    return await this.userService.updateAdminBySuperAdmin(body);
+  }
+
   @Get()
   @Roles(Role.SuperAdmin)
   @UseGuards(AccessTokenGuard, RolesGuard)
@@ -112,7 +133,12 @@ export class UserController {
   }
 
   // == USER ==
-  @Get()
+  // @Get('check')
+  // @UseGuards(AccessTokenGuard)
+  // @ApiBearerAuth()
+  // async getUserByToken(@Req() request): Promise<UserProfileResponseDto> {
+  // }
+  @Get('profile')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth()
   async getUserProfile(@Req() request): Promise<UserProfileResponseDto> {
@@ -180,7 +206,7 @@ export class UserController {
     return await this.addressService.updateAddress(body);
   }
 
-  @Delete('address')
+  @Delete('delete-address')
   async deleteAddress(
     @Body() body: DeleteAddressRequestDto,
   ): Promise<ResultModelResponseDto> {

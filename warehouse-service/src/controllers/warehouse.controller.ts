@@ -18,6 +18,7 @@ import { DeleteWarehouseRequestDto } from 'src/dtos/warehouse/delete-warehouse.r
 import { AssignAdminWarehouseRequestDto } from 'src/dtos/warehouse/assign-warehouse-admin.request.dto';
 import { WarehouseListResponseDto } from 'src/dtos/warehouse/warehouse-list.response.dto';
 import { UpdateWarehouseRequestDto } from 'src/dtos/warehouse/update-warehouse.request.dto';
+import { GetWarehouseByTokenDto } from 'src/dtos/warehouse/get-warehouse.request.dto';
 
 @Controller('warehouse')
 export class WarehouseController implements OnModuleInit {
@@ -36,6 +37,14 @@ export class WarehouseController implements OnModuleInit {
   @ApiBearerAuth()
   async getWarehouseList(): Promise<WarehouseListResponseDto[]> {
     return this.warehouseService.getWarehouseList();
+  }
+
+  @Post('get-warehouse')
+  @ApiBearerAuth()
+  async getWarehouseByToken(
+    @Body() body: GetWarehouseByTokenDto,
+  ): Promise<WarehouseListResponseDto[]> {
+    return this.warehouseService.getWarehouseByToken(body.token);
   }
 
   @Post()
@@ -79,7 +88,7 @@ export class WarehouseController implements OnModuleInit {
   }
 
   onModuleInit() {
-    this.userClient.subscribeToResponseOf('get_user');
-    this.userClient.subscribeToResponseOf('get_admin');
+    this.userClient.subscribeToResponseOf('get-user-data');
+    this.userClient.subscribeToResponseOf('get-user-token');
   }
 }

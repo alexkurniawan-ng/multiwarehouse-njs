@@ -41,7 +41,7 @@ export class AddressService {
     }
     await this.addressRepository.save(newAddress);
     this.userClient.emit(
-      'user_address_created_event',
+      'user-address-created-event',
       new UserAddressCreatedEvent(newAddress),
     );
     console.log(`Address created with userId: ${userId}`);
@@ -71,7 +71,7 @@ export class AddressService {
     address.lng = lng;
     await this.addressRepository.save(address);
     this.userClient.emit(
-      'user_address_updated_event',
+      'user-address-updated-event',
       new UserAddressUpdatedEvent(address),
     );
     console.log(`Address successfully updated with id: ${id}`);
@@ -89,7 +89,7 @@ export class AddressService {
         address.isDefault = address.id === addressId;
         await this.addressRepository.save(address);
         this.userClient.emit(
-          'user_address_primary_updated_event',
+          'user-address-primary-updated-event',
           new UserAddressPrimaryUpdatedEvent({
             addressId: address.id,
             userId: address.userId,
@@ -113,7 +113,7 @@ export class AddressService {
     const { id } = deleteAddressDto;
     await this.addressRepository.delete(id);
     this.userClient.emit(
-      'user_address_deleted_event',
+      'user-address-deleted-event',
       new UserAddressDeletedEvent({ id }),
     );
     console.log(`Address successfully deleted with id: ${id}`);
