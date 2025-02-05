@@ -33,6 +33,7 @@ import { AccessTokenGuard } from 'src/guards/access-token.guard';
 import { RolesGuard } from 'src/guards/roles.guard';
 import { AddressService } from 'src/services/address.service';
 import { UserService } from 'src/services/user.service';
+import { SetPasswordRequestDto } from 'src/dtos/set-pasword.request.dto';
 
 @Controller('user')
 export class UserController {
@@ -178,12 +179,30 @@ export class UserController {
   @Put('change-password')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth()
-  async changePassword(
+  async verifyEmail(
     @Req() request,
     @Body() body: ChangePasswordRequestDto,
   ): Promise<ResultModelResponseDto> {
     console.log({ body });
     return await this.userService.changePassword(request.user.id, body);
+  }
+
+  @Put('set-password')
+  @ApiBearerAuth()
+  async setPassword(
+    @Body() body: SetPasswordRequestDto,
+  ): Promise<ResultModelResponseDto> {
+    console.log({ body });
+    return await this.userService.setPassword(body);
+  }
+
+  @Post('verify-email/:token')
+  @ApiBearerAuth()
+  async changePassword(
+    @Param('token') token: string,
+  ): Promise<ResultModelResponseDto> {
+    console.log({ token });
+    return await this.userService.verifyEmail(token);
   }
 
   // ADDRESS

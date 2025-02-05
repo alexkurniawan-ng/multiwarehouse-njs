@@ -27,6 +27,8 @@ import * as crypto from 'crypto';
 import { ClientKafka } from '@nestjs/microservices';
 import { UserCreatedEvent } from 'src/events/user-created-event';
 import { GetUserTokenRequestDto } from 'src/dtos/get-user-token.request.dto';
+import { TokenResponseDto } from 'src/dtos/login.response.dto';
+import { SetPasswordRequestDto } from 'src/dtos/set-pasword.request.dto';
 
 @Injectable()
 export class UserService implements OnApplicationBootstrap {
@@ -299,6 +301,31 @@ export class UserService implements OnApplicationBootstrap {
     return new ResultModelResponseDto(true, '');
   }
 
+  // TODO: check if it works
+  async setPassword(
+    request: SetPasswordRequestDto,
+  ): Promise<ResultModelResponseDto> {
+    try {
+      const email = await this.decodeJWTForgotPasswordToken(request.token);
+      const user = await this.userRepository.findOne({
+        where: { email },
+        relations: ['roles'],
+      });
+      console.log({ user });
+      if (!user) throw new AppBadRequestException('Invalid Token');
+      this.checkPasswordConfirmation(request.password, request.rePassword);
+      user.passwordHash = await this.hashPassword(
+        request.rePassword,
+        this.passwordPepper,
+      );
+      await this.userRepository.save(user);
+      return new ResultModelResponseDto(true, 'Password successfully set');
+    } catch (error) {
+      console.log(error);
+      throw new AppBadRequestException('Invalid Password');
+    }
+  }
+
   async getAvailableRole(): Promise<string[]> {
     const roles = await this.roleRepository.find({
       where: {
@@ -391,6 +418,7 @@ export class UserService implements OnApplicationBootstrap {
   }
 
   public async sendVerifyEmail(data: any) {
+    console.log('Sending email...');
     const { fullName, email } = data;
     const payload = { fullName, email };
     const token = this.jwtService.sign(payload, {
@@ -421,7 +449,7 @@ export class UserService implements OnApplicationBootstrap {
     const token = this.jwtService.sign(payload, {
       expiresIn: this.forgotPasswordExpiry,
     });
-    const url = `${baseUrl}/${this.forgotPasswordUrl}/${token}`;
+    const url = `${baseUrl}/${this.forgotPasswordUrl}?token=${token}`;
     const text = `
     Dear ${name},
     
@@ -438,6 +466,22 @@ export class UserService implements OnApplicationBootstrap {
       subject: 'Forgot Password',
       text,
     });
+  }
+
+  public async verifyEmail(token: string): Promise<ResultModelResponseDto> {
+    try {
+      const email = await this.decodeJWTForgotPasswordToken(token);
+      const user = await this.userRepository.findOne({
+        where: { email },
+        relations: ['roles'],
+      });
+      console.log({ user });
+      if (!user) throw new AppBadRequestException('Invalid Token');
+      return new ResultModelResponseDto(true, 'Token confirmed');
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   public sendStockAlert(data: any) {
